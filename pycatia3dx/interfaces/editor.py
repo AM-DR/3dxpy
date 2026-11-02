@@ -121,12 +121,30 @@ class Editor(AnyObject):
         :param str i_service:
         :return: AnyService
         """
+        from pycatia3dx.ecosystem.dynamic_com import DynamicCOMService
         from pycatia3dx.types import editor_service_types
+        from pycatia3dx.types.service import resolve_service_entry
 
-        if i_service not in [service for service in editor_service_types]:
-            raise KeyError(f'{i_service} not a recognized service.')
+        resolved = resolve_service_entry(i_service, editor_service_types)
+        if resolved is not None:
+            canonical_name, svc_cls = resolved
+            try:
+                raw_svc = self.com_object.GetService(i_service)
+            except Exception:
+                raw_svc = self.com_object.GetService(canonical_name)
+            if raw_svc is None and canonical_name != i_service:
+                raw_svc = self.com_object.GetService(canonical_name)
+            if raw_svc is None:
+                raise KeyError(f'{i_service} service returned None from 3DEXPERIENCE.')
+            return svc_cls(raw_svc)
 
-        return editor_service_types[i_service]['type'](self.com_object.GetService(i_service))
+        try:
+            raw_svc = self.com_object.GetService(i_service)
+        except Exception as exc:
+            raise KeyError(f'{i_service} not a recognized or available service.') from exc
+        if raw_svc is None:
+            raise KeyError(f'{i_service} not a recognized or available service.')
+        return DynamicCOMService(raw_svc, service_id=i_service)
 
     def __repr__(self):
         return f'Editor(name="{self.name}")'

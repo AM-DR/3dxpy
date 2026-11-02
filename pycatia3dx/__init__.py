@@ -52,6 +52,23 @@ from pycatia3dx.tps.enums import *
 from pycatia3dx.version import version
 
 from pycatia3dx.base_interfaces.base_application import catia_application as catia3dx
+from pycatia3dx.ecosystem import (
+    CATBatchRunner,
+    DelmiaController,
+    DynamicCOMObject,
+    DynamicCOMService,
+    EnoviaClient,
+    ThreeDXPlatformClient,
+    UniversalClientController,
+    Workbenches,
+)
+from pycatia3dx.hub import ThreeDExperience
+from pycatia3dx.simulia import (
+    AbaqusInpDeck,
+    AbaqusOdbReader,
+    AbaqusRunner,
+    SimuliaSuite,
+)
 
 __author__ = 'Paul Bourne'
 __author_email = 'evereux@gmail.com'

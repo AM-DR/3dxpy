@@ -5,9 +5,20 @@ import importlib.machinery
 import importlib.util
 import logging
 import pathlib
+import subprocess
 import sys
 from types import ModuleType
 from typing import Callable
+
+try:
+    import psutil
+except ImportError:  # pragma: no cover - optional when driving standalone tools
+    psutil = None  # type: ignore[assignment]
+
+try:
+    from win32com.client import Dispatch
+except ImportError:  # pragma: no cover - optional on non-Windows / solver environments
+    Dispatch = None  # type: ignore[assignment]
 
 logger = logging.getLogger(__name__)
 
@@ -94,10 +105,58 @@ def _repair_patched_hasattr() -> None:
 # com3dx.py multiple times before pycatia3dx was imported.
 _repair_patched_hasattr()
 
-import psutil  # noqa: E402
-from win32com.client import Dispatch  # noqa: E402
 
-from pycatia3dx.interfaces.application import Application  # noqa: E402
+def _iter_3dx_process_executables() -> tuple[bool, list[str]]:
+    """
+    Return ``(process_found, exe_paths)`` for running ``3DEXPERIENCE.exe`` processes.
+
+    Uses ``psutil`` when installed, falling back to Windows PowerShell process
+    inspection if ``psutil`` is unavailable.
+    """
+    exe_paths: list[str] = []
+    process_found = False
+
+    if psutil is not None:
+        for proc in psutil.process_iter(["name", "exe"]):
+            try:
+                name = proc.info["name"] or ""
+                if name.lower() != "3dexperience.exe":
+                    continue
+                process_found = True
+                exe_location = proc.info["exe"]
+                if exe_location:
+                    exe_paths.append(exe_location)
+            except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+                continue
+        return process_found, exe_paths
+
+    if sys.platform == "win32":
+        try:
+            proc = subprocess.run(
+                [
+                    "powershell",
+                    "-NoProfile",
+                    "-NonInteractive",
+                    "-Command",
+                    "Get-Process -Name 3DEXPERIENCE -ErrorAction SilentlyContinue | "
+                    "ForEach-Object { if ($_.Path) { $_.Path } else { '<RUNNING>' } }",
+                ],
+                capture_output=True,
+                text=True,
+                timeout=10,
+                check=False,
+            )
+            for raw_line in proc.stdout.splitlines():
+                line = raw_line.strip()
+                if not line:
+                    continue
+                process_found = True
+                if line != "<RUNNING>":
+                    exe_paths.append(line)
+        except Exception:
+            pass
+
+    return process_found, exe_paths
 
 
 def _get_com3dx_path() -> pathlib.Path:
@@ -112,31 +171,17 @@ def _get_com3dx_path() -> pathlib.Path:
         FileNotFoundError: If `com3dx.py` does not exist at the derived
             installation path.
     """
-    candidates: list[pathlib.Path] = []
-    process_found = False
-
-    for proc in psutil.process_iter(['name', 'exe']):
-        try:
-            name = proc.info['name'] or ''
-            if name.lower() != '3dexperience.exe':
-                continue
-            process_found = True
-            exe_location = proc.info['exe']
-            if not exe_location:
-                continue
-            candidates.append(
-                pathlib.Path(exe_location)
-                .parent
-                .parent
-                .joinpath("python3dx", "lib", "com3dx.py")
-            )
-        except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
-            continue
+    process_found, exe_locations = _iter_3dx_process_executables()
 
     if not process_found:
         raise RuntimeError(
             "3DEXPERIENCE.exe is not running. Please launch the application first."
         )
+
+    candidates = [
+        pathlib.Path(exe_location).parent.parent.joinpath("python3dx", "lib", "com3dx.py")
+        for exe_location in exe_locations
+    ]
 
     for candidate in candidates:
         if candidate.exists():
@@ -203,7 +248,7 @@ def _import_com3dx_module() -> ModuleType:
     return com3dx
 
 
-def catia_application() -> Application:
+def catia_application(prog_id: str = "CATIA.Application") -> "Application":
     """
     Connects to the active 3DEXPERIENCE session and returns a pycatia3dx
     Application object.
@@ -229,13 +274,22 @@ def catia_application() -> Application:
     >>> from pycatia3dx import catia3dx
     >>> application = catia3dx()
 
+    :param str prog_id: Fallback COM ProgID (default ``'CATIA.Application'``;
+        can also be ``'DELMIA.Application'``).
     :return: Application
     """
+    from pycatia3dx.interfaces.application import Application
 
     def check_catia_version(application: Application) -> bool:
         if application.name != "3DEXPERIENCE":
             return False
         return True
+
+    if prog_id != "CATIA.Application":
+        if Dispatch is None:
+            raise ImportError("pywin32 is required to dispatch COM objects on Windows.")
+        app = Application(Dispatch(prog_id))
+        return app
 
     try:
         app = Application(_import_com3dx_module().get3dxClient())
@@ -244,12 +298,16 @@ def catia_application() -> Application:
         # could silently start or attach to a different CATIA product.
         raise
     except Exception as com3dx_error:
+        if Dispatch is None:
+            raise ImportError(
+                "pywin32 (win32com) is required to connect to 3DEXPERIENCE COM."
+            ) from com3dx_error
         logger.warning(
-            f'Could not connect through com3dx ({type(com3dx_error).__name__}: {com3dx_error}). '
-            f'Falling back to win32com.client.Dispatch.'
+            f"Could not connect through com3dx ({type(com3dx_error).__name__}: {com3dx_error}). "
+            f"Falling back to win32com.client.Dispatch({prog_id!r})."
         )
         try:
-            app = Application(Dispatch('CATIA.Application'))
+            app = Application(Dispatch(prog_id))
         except Exception as dispatch_error:
             raise com3dx_error from dispatch_error
 

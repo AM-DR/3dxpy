@@ -9,7 +9,10 @@
 """
 from typing import Union
 
-import pythoncom
+try:
+    import pythoncom
+except ImportError:  # pragma: no cover
+    pythoncom = None  # type: ignore[assignment]
 
 from pycatia3dx import CATScriptLanguage
 from pycatia3dx.hybrid_shapes.hybrid_shape_3d_curve_offset import HybridShape3DCurveOffset

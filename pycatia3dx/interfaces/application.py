@@ -1301,10 +1301,40 @@ class Application(AnyObject):
         :return: Service
         """
 
-        if i_service not in [service for service in application_service_types]:
-            raise KeyError(f'{i_service} not a recognized service.')
+        from pycatia3dx.ecosystem.dynamic_com import DynamicCOMService
+        from pycatia3dx.types.service import resolve_service_entry
 
-        return application_service_types[i_service]['type'](self.com_object.GetSessionService(i_service))
+        resolved = resolve_service_entry(i_service, application_service_types)
+        if resolved is not None:
+            canonical_name, svc_cls = resolved
+            candidates = list(dict.fromkeys([
+                i_service,
+                canonical_name,
+                *(["SimExecutionSerivce", "SimExecutionService"]
+                  if canonical_name in ("SimExecutionService", "SimExecutionSerivce") else []),
+            ]))
+            raw_svc = None
+            last_exc: Exception | None = None
+            for cand in candidates:
+                try:
+                    raw_svc = self.com_object.GetSessionService(cand)
+                    if raw_svc is not None:
+                        break
+                except Exception as exc:
+                    last_exc = exc
+            if raw_svc is None:
+                if last_exc is not None:
+                    raise KeyError(f'{i_service} not a recognized or available service.') from last_exc
+                raise KeyError(f'{i_service} service returned None from 3DEXPERIENCE.')
+            return svc_cls(raw_svc)
+
+        try:
+            raw_svc = self.com_object.GetSessionService(i_service)
+        except Exception as exc:
+            raise KeyError(f'{i_service} not a recognized or available service.') from exc
+        if raw_svc is None:
+            raise KeyError(f'{i_service} not a recognized or available service.')
+        return DynamicCOMService(raw_svc, service_id=i_service)
 
     def get_workbench_id(self) -> str:
         """
