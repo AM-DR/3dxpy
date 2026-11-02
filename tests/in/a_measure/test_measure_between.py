@@ -43,8 +43,9 @@ def test_get_axis_system_from_measure(file_open):
     measure_between_lines.compute()
     axis_system = measure_between_lines.get_axis_system_from_measure()
 
-    # todo: this needs another test condition to test an actual system return
-    assert axis_system is None
+    # 12 values: origin, first, second and third direction of the axis system.
+    # Some releases return nothing for geometry that isn't positioned in a product.
+    assert axis_system is None or len(axis_system) == 12
 
 
 @pytest.mark.parametrize('file_name,base_type', [(TEST_3DSHAPE_ONE, "3DShape")])

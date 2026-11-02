@@ -8,6 +8,8 @@
         and thus help debugging in pycatia.
         
 """
+from __future__ import annotations
+
 from typing import Iterator
 
 from pycatia3dx.mmr_automation_interfaces.body import Body
@@ -94,7 +96,51 @@ class Bodies(Collection):
         :param CATVariant i_index:
         :return: Body
         """
-        return Body(self.com_object.Item(i_index))
+        try:
+            return Body(self.com_object.Item(i_index))
+        except Exception:
+            # Fallback for localized CATIA environments (French, German, etc.)
+            if isinstance(i_index, str):
+                idx_lower = i_index.strip().lower()
+                if idx_lower in (
+                    "partbody", "part_body", "part body", "mainbody", "main_body",
+                    "corps principal", "corps_principal", "hauptkörper", "hauptkorper"
+                ):
+                    try:
+                        parent = self.parent
+                        if hasattr(parent, "main_body"):
+                            return parent.main_body
+                    except Exception:
+                        pass
+                    if self.count > 0:
+                        return Body(self.com_object.Item(1))
+                for b in self:
+                    if b.name.strip().lower() == idx_lower:
+                        return b
+            raise
+
+    def get_item(self, id_name: str) -> Body:
+        try:
+            return super().get_item(id_name)
+        except Exception:
+            if isinstance(id_name, str):
+                idx_lower = id_name.strip().lower()
+                if idx_lower in (
+                    "partbody", "part_body", "part body", "mainbody", "main_body",
+                    "corps principal", "corps_principal", "hauptkörper", "hauptkorper"
+                ):
+                    try:
+                        parent = self.parent
+                        if hasattr(parent, "main_body"):
+                            return parent.main_body
+                    except Exception:
+                        pass
+                    if self.count > 0:
+                        return Body(self.com_object.Item(1))
+                for b in self:
+                    if b.name.strip().lower() == idx_lower:
+                        return b
+            raise
 
     def __getitem__(self, n: int) -> Body:
         if (n + 1) > self.count:

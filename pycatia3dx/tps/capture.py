@@ -7,6 +7,7 @@
         and thus help debugging in pycatia.
         
 """
+from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from pycatia3dx.interfaces.camera_3d import Camera3D

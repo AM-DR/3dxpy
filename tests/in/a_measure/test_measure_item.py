@@ -331,7 +331,7 @@ def test_get_volume(file_open):
     editor = application.active_editor
     measure_service: MeasureService = editor.get_service('MeasureService')
     part = Part(editor.active_com_object)
-    part_body = part.bodies.item('PartBody')
+    part_body = part.main_body
 
     measure_item = measure_service.get_measure_item((part_body,))
     volume = measure_item.get_volume()
@@ -344,7 +344,7 @@ def test_get_volume_area_c_of_g(file_open):
     editor = application.active_editor
     measure_service: MeasureService = editor.get_service('MeasureService')
     part = Part(editor.active_com_object)
-    part_body = part.bodies.item('PartBody')
+    part_body = part.main_body
 
     measure_item = measure_service.get_measure_item((part_body,))
     volume = measure_item.get_volume_area_c_of_g()
@@ -361,7 +361,7 @@ def test_set_computation_mode(file_open):
     editor = application.active_editor
     measure_service: MeasureService = editor.get_service('MeasureService')
     part = Part(editor.active_com_object)
-    part_body = part.bodies.item('PartBody')
+    part_body = part.main_body
 
     measure_item = measure_service.get_measure_item((part_body,))
     measure_item.set_computation_mode(CATMeasurableModeOfCalc.MeasExactCalculation)
@@ -374,7 +374,7 @@ def test_set_measure_item_type(file_open):
     editor = application.active_editor
     measure_service: MeasureService = editor.get_service('MeasureService')
     part = Part(editor.active_com_object)
-    part_body = part.bodies.item('PartBody')
+    part_body = part.main_body
 
     measure_item = measure_service.get_measure_item((part_body,))
     measure_item.set_measure_item_type(CATOpnsMeasureItemType.catOpnsVolumeItem)

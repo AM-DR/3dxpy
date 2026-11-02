@@ -8,6 +8,7 @@
         and thus help debugging in pycatia.
         
 """
+from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from pycatia3dx.mmr_automation_interfaces.hybrid_shape import HybridShape

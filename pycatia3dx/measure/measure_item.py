@@ -13,6 +13,7 @@ from pycatia3dx import CATOpnsMeasureSurfaceType
 from pycatia3dx import CATResultCalcType
 from pycatia3dx import CATOpnsMeasureItemType
 from pycatia3dx import CATScriptLanguage
+from pycatia3dx.measure._com_arrays import call_array_out_method
 from pycatia3dx.system.any_object import AnyObject
 
 
@@ -195,9 +196,7 @@ class MeasureItem(AnyObject):
 
         :return: tuple
         """
-        # todo: this isn't working - see test_get_axis_system_from_measure
-        self.application.logger.warning("Tests at the moment show that this is broken.")
-        return self.com_object.GetAxisSystemFromMeasure()
+        return call_array_out_method(self.com_object, 'GetAxisSystemFromMeasure', 12)
         # vba_function_name = 'get_axis_system_from_measure'
         # vba_code = """
         # Public Function get_axis_system_from_measure(measure_item)

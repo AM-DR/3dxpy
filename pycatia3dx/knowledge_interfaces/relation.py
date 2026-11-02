@@ -7,6 +7,7 @@
         and thus help debugging in pycatia.
         
 """
+from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from pycatia3dx.knowledge_interfaces.knowledge_activate_object import KnowledgeActivateObject

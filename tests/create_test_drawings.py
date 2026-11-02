@@ -1,5 +1,3 @@
-import sys
-
 from pycatia3dx import version
 from pycatia3dx.drafting.drawing_gen_service import DrawingGenService
 from pycatia3dx.drafting.drawing_root import DrawingRoot
@@ -29,8 +27,7 @@ def create_test_drawing_one(application: Application):
     drawing_gen_service: DrawingGenService = application.get_session_service('CATDrawingGenService')
     link_part_body = (vpm_root_occurrence,)
     if not drawing_gen_service.check_view_link_integrity(link_part_body):
-        application.logger.warning('View link integrity check failed.')
-        sys.exit()
+        raise RuntimeError(f'View link integrity check failed for "{TEST_3DPART_ONE}".')
     else:
         application.logger.info('View link integrity check succeeded.')
 

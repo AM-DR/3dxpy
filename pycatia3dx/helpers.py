@@ -1,3 +1,4 @@
+from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 from pycatia3dx.types.bodies import body_types

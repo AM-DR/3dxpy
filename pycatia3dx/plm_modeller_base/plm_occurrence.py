@@ -7,6 +7,7 @@
         and thus help debugging in pycatia.
         
 """
+from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from pycatia3dx.plm_modeller_base.plm_entity import PLMEntity

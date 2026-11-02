@@ -47,17 +47,16 @@ See CONTRIBUTING.md in root of github repository.
 Running The Tests
 -----------------
 
-Prior to running you will need to create the test files. This script will also
-check that you have all the test files created and they are the latest version
-so it's worth running each time you upgrade pycatia3dx
+CATIA 3DEXPERIENCE should already be running. Test files (3DPart, 3DShape, Drawing)
+and geometry are verified or created automatically when running `pytest`, and
+test fixtures work regardless of the CATIA interface language (English, French,
+German, etc.). Documents you already have open are preserved and left untouched.
+
+You can also run the file checker standalone:
 
 .. code-block:: python
 
     python .\tests\check_test_files.py
-
-CATIA 3DExperience shall already be running and all documents are closed. If
-this isn't the case the tests will not run and you'll be presented with a
-warning.
 
 To run the tests with coverage (-v is verbosity):
 
