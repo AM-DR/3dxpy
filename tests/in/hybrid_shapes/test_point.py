@@ -2,7 +2,7 @@ import pytest
 
 from pycatia3dx.hybrid_shapes.point import Point
 from pycatia3dx.mmr_automation_interfaces.part import Part
-from tests.conftest import application
+from tests.conftest import application, close_all
 from tests.test_part_parameters import TEST_3DSHAPE_ONE, geom_set_points
 
 
@@ -27,3 +27,4 @@ def test_set_coordinates(file_open):
     point_1.set_coordinates((1.0, 1.0, 1.0))
     part.update()
     assert point_1.get_coordinates() == (1.0, 1.0, 1.0)
+    close_all()

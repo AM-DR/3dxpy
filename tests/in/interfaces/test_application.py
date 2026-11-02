@@ -150,7 +150,8 @@ def test_get_session_service():
     assert 'PLMNewService' in plm_service.__repr__()
 
 
-def test_get_workbench_id():
+@pytest.mark.parametrize('file_name,base_type', [(TEST_3DSHAPE_ONE, "3DShape")])
+def test_get_workbench_id(file_open):
     application.start_workbench('PrtCfg')
     assert application.get_workbench_id() == "PrtCfg"
 

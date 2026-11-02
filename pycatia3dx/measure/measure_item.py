@@ -196,7 +196,7 @@ class MeasureItem(AnyObject):
 
         :return: tuple
         """
-        return call_array_out_method(self.com_object, 'GetAxisSystemFromMeasure', 12)
+        return call_array_out_method(self, 'GetAxisSystemFromMeasure', 12)
         # vba_function_name = 'get_axis_system_from_measure'
         # vba_code = """
         # Public Function get_axis_system_from_measure(measure_item)

@@ -1,2 +1,2 @@
-pywin32==312
-psutil==7.2.1
+pywin32>=306
+psutil>=5.9

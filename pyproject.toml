@@ -2,15 +2,15 @@
 name = "pycatia3dx"
 version = "0.2.0"
 dependencies = [
-    "pywin32 == 312",
-    "psutil==7.2.1",
+    "pywin32 >= 306",
+    "psutil >= 5.9",
 ]
 authors = [
     { name = "Paul Bourne", email = "evereux@gmail.com" }
 ]
 description = "A python package for automation of the CATIA 3DEXPERIENCE cad application."
 readme = "README.md"
-requires-python = ">=3.12"
+requires-python = ">=3.11"
 classifiers = [
     "Programming Language :: Python :: 3",
     "Operating System :: Microsoft :: Windows :: Windows 10",

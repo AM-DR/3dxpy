@@ -16,6 +16,32 @@ from pycatia3dx.mmr_automation_interfaces.body import Body
 from pycatia3dx.system.collection import Collection
 from pycatia3dx.types.general import CATVariant
 
+# Default main-body names created by CATIA across supported UI languages.
+_DEFAULT_MAIN_BODY_NAMES: frozenset[str] = frozenset({
+    "partbody",
+    "part body",
+    "part_body",
+    "mainbody",
+    "main body",
+    "main_body",
+    "corps principal",      # French
+    "corps_principal",
+    "hauptkörper",          # German
+    "hauptkoerper",
+    "hauptkorper",
+    "cuerpo principal",     # Spanish
+    "corpo principale",     # Italian
+    "corpo principal",      # Portuguese
+    "パートボディ",           # Japanese (full-width)
+    "ﾊﾟｰﾄﾎﾞﾃﾞｨ",             # Japanese (half-width)
+    "零件几何体",             # Simplified Chinese
+    "零件幾何體",             # Traditional Chinese
+    "파트바디",               # Korean
+    "파트 바디",
+    "тело детали",          # Russian
+    "основное тело",
+})
+
 
 class Bodies(Collection):
     """
@@ -62,6 +88,27 @@ class Bodies(Collection):
         """
         return Body(self.com_object.Add())
 
+    def _resolve_localized_body(self, name: str) -> Body | None:
+        """
+        Resolve default main-body aliases (e.g. ``'PartBody'`` on a French or
+        German CATIA installation) or case-insensitive body names.
+        """
+        normalized = name.strip().lower()
+        if normalized in _DEFAULT_MAIN_BODY_NAMES:
+            try:
+                return Body(self.com_object.Parent.MainBody)
+            except Exception:
+                if self.count > 0:
+                    return Body(self.com_object.Item(1))
+
+        for body in self:
+            try:
+                if body.name.strip().lower() == normalized:
+                    return body
+            except Exception:
+                continue
+        return None
+
     def item(self, i_index: CATVariant) -> Body:
         """
         .. note::
@@ -99,24 +146,10 @@ class Bodies(Collection):
         try:
             return Body(self.com_object.Item(i_index))
         except Exception:
-            # Fallback for localized CATIA environments (French, German, etc.)
             if isinstance(i_index, str):
-                idx_lower = i_index.strip().lower()
-                if idx_lower in (
-                    "partbody", "part_body", "part body", "mainbody", "main_body",
-                    "corps principal", "corps_principal", "hauptkörper", "hauptkorper"
-                ):
-                    try:
-                        parent = self.parent
-                        if hasattr(parent, "main_body"):
-                            return parent.main_body
-                    except Exception:
-                        pass
-                    if self.count > 0:
-                        return Body(self.com_object.Item(1))
-                for b in self:
-                    if b.name.strip().lower() == idx_lower:
-                        return b
+                resolved = self._resolve_localized_body(i_index)
+                if resolved is not None:
+                    return resolved
             raise
 
     def get_item(self, id_name: str) -> Body:
@@ -124,22 +157,9 @@ class Bodies(Collection):
             return super().get_item(id_name)
         except Exception:
             if isinstance(id_name, str):
-                idx_lower = id_name.strip().lower()
-                if idx_lower in (
-                    "partbody", "part_body", "part body", "mainbody", "main_body",
-                    "corps principal", "corps_principal", "hauptkörper", "hauptkorper"
-                ):
-                    try:
-                        parent = self.parent
-                        if hasattr(parent, "main_body"):
-                            return parent.main_body
-                    except Exception:
-                        pass
-                    if self.count > 0:
-                        return Body(self.com_object.Item(1))
-                for b in self:
-                    if b.name.strip().lower() == idx_lower:
-                        return b
+                resolved = self._resolve_localized_body(id_name)
+                if resolved is not None:
+                    return resolved
             raise
 
     def __getitem__(self, n: int) -> Body:

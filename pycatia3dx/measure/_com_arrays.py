@@ -1,76 +1,64 @@
 """
-Helpers for COM methods that return their result through a
-``CATSafeArrayVariant`` output parameter (e.g. ``GetAxisSystemFromMeasure``).
+Helpers for COM methods whose sole parameter is an output ``CATSafeArrayVariant``
+(for example ``GetAxisSystemFromMeasure``).
 
-Python can't pass a VB array "by reference" directly. Calling such a method
-without an argument raises ``DISP_E_TYPEMISMATCH`` / ``DISP_E_PARAMNOTOPTIONAL``
-with late-bound COM, which is what pycatia3dx gets through com3dx. These
-helpers pass a pre-sized by-reference VARIANT array instead and read the
-result back.
+CATIA's ``IDispatch`` implementation rejects Python ``win32com`` SAFEARRAY
+parameters with ``DISP_E_TYPEMISMATCH`` ("Type mismatch"). Consistent with
+``MeasurableAxisSystem.get_axis``, ``MeasureBetween.get_components`` and the
+other array-returning methods in pycatia3dx, we evaluate a tiny ``CATVBScript``
+helper through ``SystemService.Evaluate`` so CATIA receives a native VBScript
+Variant array. ``On Error Resume Next`` ensures that unset optional results
+(such as a measure with no associated axis system) cleanly return ``None``
+instead of raising a COM error.
 """
 from __future__ import annotations
 
 from typing import Any
 
-try:
-    import pythoncom
-    from win32com.client import VARIANT
-except ImportError:
-    pythoncom = None
-    VARIANT = None
+from pycatia3dx import CATScriptLanguage
 
 
-def call_array_out_method(com_object: Any, method_name: str, size: int) -> tuple | None:
+def call_array_out_method(target: Any, method_name: str, size: int) -> tuple | None:
     """
-    Call `method_name` on `com_object` whose only parameter is an output
-    array of `size` elements and return that array as a tuple.
-
-    Several argument types are tried in turn because different 3DEXPERIENCE
-    releases / COM bridges accept different ones.
-
-    :param com_object: the COM object.
-    :param str method_name: the COM method name, e.g. 'GetAxisSystemFromMeasure'.
-    :param int size: number of elements of the output array.
-    :return: tuple or None if the method didn't return anything.
+    Invoke ``method_name`` on ``target`` (an ``AnyObject`` wrapper or raw COM
+    object) with a VBScript Variant array of ``size`` elements and return the
+    populated tuple, or ``None`` if no values were produced.
     """
-    method = getattr(com_object, method_name)
-    last_error: Exception | None = None
+    if size <= 0:
+        raise ValueError(f"size must be positive, got {size}")
 
-    if pythoncom is not None and VARIANT is not None:
-        for vt in (pythoncom.VT_VARIANT, pythoncom.VT_R8):
-            try:
-                out = VARIANT(pythoncom.VT_BYREF | pythoncom.VT_ARRAY | vt, [0.0] * size)
-                result = method(out)
-                value = out.value if out.value is not None else result
-                if value is not None:
-                    return _to_tuple(value)
-            except Exception as e:
-                last_error = e
-                continue
+    if hasattr(target, "application") and hasattr(target, "com_object"):
+        application = target.application
+        com_object = target.com_object
+    else:
+        from pycatia3dx.interfaces.application import Application
+        com_object = target
+        application = Application(com_object.Application)
 
-    # Try passing a mutable list as out param
-    try:
-        arr = [0.0] * size
-        res = method(arr)
-        if any(x != 0.0 for x in arr):
-            return tuple(arr)
-        if res is not None:
-            return _to_tuple(res)
-    except Exception as e:
-        last_error = e
+    upper = size - 1
+    vba_function_name = "pycatia3dx_get_array_out"
+    vba_code = f"""
+    Public Function {vba_function_name}(target_obj)
+        On Error Resume Next
+        Dim out_arr ({upper})
+        target_obj.{method_name} out_arr
+        If Err.Number <> 0 Then
+            {vba_function_name} = Null
+        Else
+            {vba_function_name} = out_arr
+        End If
+    End Function
+    """
 
-    # early-bound / type-library aware dispatch returns out parameters directly.
-    try:
-        return _to_tuple(method())
-    except Exception as e:
-        if last_error:
-            raise last_error
-        raise e
+    result = application.system_service.evaluate(
+        vba_code,
+        CATScriptLanguage.CATVBScriptLanguage,
+        vba_function_name,
+        [com_object],
+    )
 
-
-def _to_tuple(value: Any) -> tuple | None:
-    if value is None:
-        return None
-    if isinstance(value, (list, tuple)):
-        return tuple(value)
-    return (value,)
+    if isinstance(result, (list, tuple)):
+        if all(item is None for item in result):
+            return None
+        return tuple(result)
+    return None

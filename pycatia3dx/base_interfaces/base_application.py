@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import builtins
 import importlib.machinery
 import importlib.util
@@ -6,11 +8,6 @@ import pathlib
 import sys
 from types import ModuleType
 from typing import Callable
-
-import psutil
-from win32com.client import Dispatch
-
-from pycatia3dx.interfaces.application import Application
 
 logger = logging.getLogger(__name__)
 
@@ -91,6 +88,16 @@ def _repair_patched_hasattr() -> None:
         if func_globals.get("_builtin_hasattr") is None:
             func_globals["_builtin_hasattr"] = original
         current = func_globals["_builtin_hasattr"]
+
+
+# Heal builtins.hasattr immediately at import time in case external code loaded
+# com3dx.py multiple times before pycatia3dx was imported.
+_repair_patched_hasattr()
+
+import psutil  # noqa: E402
+from win32com.client import Dispatch  # noqa: E402
+
+from pycatia3dx.interfaces.application import Application  # noqa: E402
 
 
 def _get_com3dx_path() -> pathlib.Path:
@@ -176,6 +183,12 @@ def _import_com3dx_module() -> ModuleType:
     # function, so behaviour is unchanged in the normal case.
     com3dx.__dict__["_builtin_hasattr"] = _original_hasattr()
 
+    lib_dir = str(module_path.parent)
+    added_sys_path = False
+    if lib_dir not in sys.path:
+        sys.path.append(lib_dir)
+        added_sys_path = True
+
     sys.modules[_COM3DX_MODULE_NAME] = com3dx
     try:
         spec.loader.exec_module(com3dx)
@@ -183,6 +196,8 @@ def _import_com3dx_module() -> ModuleType:
         sys.modules.pop(_COM3DX_MODULE_NAME, None)
         raise
     finally:
+        if added_sys_path and lib_dir in sys.path:
+            sys.path.remove(lib_dir)
         _repair_patched_hasattr()
 
     return com3dx
